@@ -43,10 +43,20 @@ export default function PokerDashboard() {
 
   if (!gameState) return <div className="text-center p-10 text-white font-bold text-xl">טוען שולחן...</div>;
 
+  // -- מסך פתיחת שולחן --
   if (!gameState.isSetup) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-4 font-sans dir-rtl" dir="rtl">
-        <div className="max-w-md mx-auto bg-gray-800 rounded-xl p-8 shadow-2xl border border-gray-700 mt-10">
+      <div
+        className="min-h-screen text-white p-4 font-sans dir-rtl bg-gray-900"
+        dir="rtl"
+        style={{
+          backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed"
+        }}
+      >
+        <div className="max-w-md mx-auto bg-gray-800/90 backdrop-blur-sm rounded-xl p-8 shadow-2xl border border-gray-700 mt-10">
           <h1 className="text-3xl font-bold text-center mb-6 text-green-400">פתיחת שולחן פוקר</h1>
           <div className="mb-8">
             <label className="block text-gray-400 mb-2 font-bold">סכום כניסה ראשונית (₪):</label>
@@ -82,7 +92,16 @@ export default function PokerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 font-sans dir-rtl pb-24" dir="rtl">
+    <div
+      className="min-h-screen text-white p-4 font-sans dir-rtl pb-24 bg-gray-900"
+      dir="rtl"
+      style={{
+        backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed"
+      }}
+    >
       <div className="max-w-md mx-auto">
 
         <div className="flex justify-between items-center mb-6 mt-4">
@@ -96,19 +115,19 @@ export default function PokerDashboard() {
             onClick={() => {
               if (confirm('בטוח שאתה רוצה לאפס הכל?')) socket.emit('resetGame');
             }}
-            className="text-red-400 text-sm hover:text-red-300 font-bold bg-red-900/30 px-3 py-2 rounded-md"
+            className="text-red-400 text-sm hover:text-red-300 font-bold bg-red-900/40 px-3 py-2 rounded-md backdrop-blur-sm"
           >
             איפוס שולחן
           </button>
         </div>
 
-        <div className={`rounded-xl p-6 shadow-2xl border mb-6 text-center relative overflow-hidden ${gameState.isCashingOut ? 'bg-blue-900/40 border-blue-500' : 'bg-gray-800 border-gray-700'}`}>
+        <div className={`rounded-xl p-6 shadow-2xl border mb-6 text-center relative overflow-hidden backdrop-blur-sm ${gameState.isCashingOut ? 'bg-blue-900/60 border-blue-500' : 'bg-gray-800/80 border-gray-700'}`}>
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600"></div>
-          <h2 className="text-xl text-gray-400 mb-2">קופה כללית (כסף בפייבוקס)</h2>
+          <h2 className="text-xl text-gray-300 mb-2">קופה כללית (כסף בפייבוקס)</h2>
           <div className="text-6xl font-black text-yellow-400 tracking-tight">₪{totalPot}</div>
 
           {gameState.isCashingOut && (
-            <div className="mt-4 p-3 bg-gray-900 rounded-lg">
+            <div className="mt-4 p-3 bg-gray-900/80 rounded-lg">
               <div className="text-gray-300 text-sm mb-1">סה"כ צ'יפים שהוזנו: ₪{totalCashedOut}</div>
               {balanceDifference === 0 ? (
                 <div className="text-green-400 font-bold text-lg">✓ השולחן מאוזן באופן מושלם</div>
@@ -122,7 +141,7 @@ export default function PokerDashboard() {
         </div>
 
         {!gameState.isCashingOut && (
-          <div className="bg-gray-800 rounded-xl p-5 shadow-lg border border-teal-700/50 mb-6">
+          <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-5 shadow-lg border border-teal-700/50 mb-6">
             <h3 className="text-lg font-bold mb-4 text-teal-400">הצטרפות לשולחן:</h3>
             <div className="space-y-3">
               <input
@@ -145,7 +164,7 @@ export default function PokerDashboard() {
                     setNewPlayerName('');
                     setHasClickedPaybox(false);
                   }}
-                  className={`flex-1 py-3 rounded-lg font-bold transition-all shadow-md ${(hasClickedPaybox && newPlayerName.trim()) ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-500'}`}
+                  className={`flex-1 py-3 rounded-lg font-bold transition-all shadow-md ${(hasClickedPaybox && newPlayerName.trim()) ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'}`}
                 >
                   2. היכנס למשחק
                 </button>
@@ -155,14 +174,14 @@ export default function PokerDashboard() {
         )}
 
         <div className="space-y-3 mb-8">
-          <h3 className="text-lg font-bold text-gray-400 mb-2">
+          <h3 className="text-lg font-bold text-gray-300 mb-2">
             {gameState.isCashingOut ? 'הזנת צ\'יפים לכל שחקן:' : `שחקנים פעילים (${gameState.players.length}):`}
           </h3>
 
           {gameState.players.map(player => (
-            <div key={player.id} className="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 flex justify-between items-center">
+            <div key={player.id} className="bg-gray-800/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-gray-700 flex justify-between items-center">
               <div>
-                <div className="font-bold text-xl mb-1">{player.name}</div>
+                <div className="font-bold text-xl mb-1 text-white">{player.name}</div>
                 {!gameState.isCashingOut && (
                   <div className="text-yellow-400 font-bold text-sm">הכניס לקופה: ₪{player.rebuys * gameState.buyInAmount}</div>
                 )}
@@ -170,14 +189,14 @@ export default function PokerDashboard() {
 
               {!gameState.isCashingOut ? (
                 <div className="flex items-center gap-3">
-                  <span className="bg-gray-700 border border-gray-600 px-3 py-1.5 rounded-lg text-md font-mono font-bold" dir="ltr">x{player.rebuys}</span>
-                  <button onClick={() => handleRebuy(player)} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-colors shadow-md text-sm">
+                  <span className="bg-gray-700 border border-gray-600 px-3 py-1.5 rounded-lg text-md font-mono font-bold text-white" dir="ltr">x{player.rebuys}</span>
+                  <button onClick={() => handleRebuy(player)} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-colors shadow-md text-sm text-white">
                     + Re-buy
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="text-gray-400 text-sm text-left">להעביר חזרה:</div>
+                  <div className="text-gray-300 text-sm text-left">להעביר חזרה:</div>
                   <input
                     type="number" value={gameState.finalChips[player.id] || ''} placeholder="₪"
                     onChange={(e) => socket.emit('updateFinalChips', { playerId: player.id, amount: Number(e.target.value) })}
@@ -187,18 +206,18 @@ export default function PokerDashboard() {
               )}
             </div>
           ))}
-          {gameState.players.length === 0 && <div className="text-center text-gray-500 py-6">עדיין אין שחקנים בשולחן...</div>}
+          {gameState.players.length === 0 && <div className="text-center text-gray-400 py-6">עדיין אין שחקנים בשולחן...</div>}
         </div>
 
-        <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 overflow-hidden">
-          <div className="bg-gray-900 p-3 text-sm font-bold text-gray-400 border-b border-gray-700">היסטוריית פעולות (Live)</div>
-          <div className="p-3 h-40 overflow-y-auto space-y-2 text-sm text-gray-300">
+        <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-700 overflow-hidden">
+          <div className="bg-gray-900/90 p-3 text-sm font-bold text-gray-300 border-b border-gray-700">היסטוריית פעולות (Live)</div>
+          <div className="p-3 h-40 overflow-y-auto space-y-2 text-sm text-gray-200">
             {!gameState.logs || gameState.logs.length === 0 ? (
-              <div className="text-gray-600 text-center mt-4">אין היסטוריה עדיין...</div>
+              <div className="text-gray-400 text-center mt-4">אין היסטוריה עדיין...</div>
             ) : (
               gameState.logs.map(log => (
                 <div key={log.id} className="flex gap-2">
-                  <span className="text-gray-500 font-mono">[{log.time}]</span>
+                  <span className="text-gray-400 font-mono">[{log.time}]</span>
                   <span>{log.text}</span>
                 </div>
               ))
