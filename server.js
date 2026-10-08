@@ -74,7 +74,8 @@ app.prepare().then(() => {
 
     server.use((req, res) => handle(req, res));
 
-    httpServer.listen(3000, () => {
-        console.log('> Poker Manager running on http://localhost:3000');
+    const port = process.env.PORT || 3000;
+    httpServer.listen(port, () => {
+        console.log(`> Poker Manager running on port ${port}`);
     });
 });
