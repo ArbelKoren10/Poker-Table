@@ -22,7 +22,11 @@ app.prepare().then(() => {
     };
 
     const addLog = (text) => {
-        const time = new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        const time = new Date().toLocaleTimeString('he-IL', {
+            timeZone: 'Asia/Jerusalem',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
         gameState.logs.push({ id: Date.now() + Math.random(), time, text });
         if (gameState.logs.length > 50) gameState.logs.shift();
     };
