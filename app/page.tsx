@@ -8,7 +8,6 @@ interface Player {
   hasCashedOut?: boolean; cashedOutChips?: number; payout?: number; paidRake?: number;
 }
 
-// הוספנו הגדרה מסודרת לסטטיסטיקות כדי ש-TypeScript לא יצעק
 interface PlayerStat extends Player {
   invested: number;
   chips: number;
@@ -102,25 +101,20 @@ export default function PokerDashboard() {
     );
   }
 
-  // חישובים לסיכום והפודיום - עם סוג נתונים מוגדר
+  // חישובים לסיכום והפודיום (נכתב מחדש כדי ש-TypeScript לא יעשה בעיות)
   const playerStats: PlayerStat[] = gameState.players.map(p => {
     const invested = p.rebuys * gameState.buyInAmount;
     const chips = p.hasCashedOut ? p.cashedOutChips : (gameState.finalChips[p.id] || 0);
     const profit = (chips || 0) - invested;
     return { ...p, invested, chips: chips || 0, profit };
-  }).sort((a, b) => b.profit - a.profit);
-
-  const mvp: PlayerStat | null = playerStats.length > 0 && playerStats[0].profit > 0 ? playerStats[0] : null;
-  const sheep: PlayerStat | null = playerStats.length > 1 && playerStats[playerStats.length - 1].profit < 0 ? playerStats[playerStats.length - 1] : null;
-
-  let atm: PlayerStat | null = null;
-  let maxRebuys = 0;
-  playerStats.forEach(p => {
-    if (p.rebuys > maxRebuys) {
-      maxRebuys = p.rebuys;
-      atm = p;
-    }
   });
+
+  const sortedByProfit = [...playerStats].sort((a, b) => b.profit - a.profit);
+  const sortedByRebuys = [...playerStats].sort((a, b) => b.rebuys - a.rebuys);
+
+  const mvp = sortedByProfit.length > 0 && sortedByProfit[0].profit > 0 ? sortedByProfit[0] : null;
+  const sheep = sortedByProfit.length > 1 && sortedByProfit[sortedByProfit.length - 1].profit < 0 ? sortedByProfit[sortedByProfit.length - 1] : null;
+  const atm = sortedByRebuys.length > 0 && sortedByRebuys[0].rebuys > 1 ? sortedByRebuys[0] : null;
 
   const totalEntries = gameState.players.reduce((sum, p) => sum + p.rebuys, 0);
   const totalGrossPot = totalEntries * gameState.buyInAmount;
@@ -172,7 +166,7 @@ export default function PokerDashboard() {
             )}
 
             {/* כספומט */}
-            {atm && atm.rebuys > 1 && atm.id !== sheep?.id && (
+            {atm && atm.id !== sheep?.id && (
               <div className="bg-gradient-to-br from-blue-900/80 to-gray-800/90 rounded-2xl p-6 border-2 border-blue-500/50 shadow-2xl relative overflow-hidden transform hover:scale-105 transition-transform">
                 <div className="absolute top-2 left-2 text-5xl opacity-20">🏧</div>
                 <div className="text-blue-400 font-bold mb-1">הכספומט של השולחן</div>
