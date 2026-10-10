@@ -8,6 +8,13 @@ interface Player {
   hasCashedOut?: boolean; cashedOutChips?: number; payout?: number; paidRake?: number;
 }
 
+// הוספנו הגדרה מסודרת לסטטיסטיקות כדי ש-TypeScript לא יצעק
+interface PlayerStat extends Player {
+  invested: number;
+  chips: number;
+  profit: number;
+}
+
 interface GameState {
   isSetup: boolean;
   buyInAmount: number;
@@ -95,18 +102,18 @@ export default function PokerDashboard() {
     );
   }
 
-  // חישובים לסיכום והפודיום
-  const playerStats = gameState.players.map(p => {
+  // חישובים לסיכום והפודיום - עם סוג נתונים מוגדר
+  const playerStats: PlayerStat[] = gameState.players.map(p => {
     const invested = p.rebuys * gameState.buyInAmount;
     const chips = p.hasCashedOut ? p.cashedOutChips : (gameState.finalChips[p.id] || 0);
     const profit = (chips || 0) - invested;
     return { ...p, invested, chips: chips || 0, profit };
-  }).sort((a, b) => b.profit - a.profit); // מסדר מהרווח הגדול להפסד הגדול
+  }).sort((a, b) => b.profit - a.profit);
 
-  const mvp = playerStats.length > 0 && playerStats[0].profit > 0 ? playerStats[0] : null;
-  const sheep = playerStats.length > 1 && playerStats[playerStats.length - 1].profit < 0 ? playerStats[playerStats.length - 1] : null;
+  const mvp: PlayerStat | null = playerStats.length > 0 && playerStats[0].profit > 0 ? playerStats[0] : null;
+  const sheep: PlayerStat | null = playerStats.length > 1 && playerStats[playerStats.length - 1].profit < 0 ? playerStats[playerStats.length - 1] : null;
 
-  let atm = null;
+  let atm: PlayerStat | null = null;
   let maxRebuys = 0;
   playerStats.forEach(p => {
     if (p.rebuys > maxRebuys) {
