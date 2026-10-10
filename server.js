@@ -71,14 +71,26 @@ app.prepare().then(() => {
             }
         });
 
-        // הפונקציה החדשה למחיקת כניסה (אדמין בלבד)
+        // הלוגיקה המעודכנת: מחיקת כניסה + הסרת השחקן אם הגיע ל-0
         socket.on('removeRebuy', (data) => {
             const { playerId, count = 1 } = data;
-            const player = gameState.players.find(p => p.id === playerId);
-            if (player && player.rebuys >= count) {
-                player.rebuys -= count;
-                addLog(`מנהל ביטל כניסה של ₪${count * gameState.buyInAmount} לשחקן ${player.name}`);
-                io.emit('updateState', gameState);
+            const playerIndex = gameState.players.findIndex(p => p.id === playerId);
+
+            if (playerIndex > -1) {
+                const player = gameState.players[playerIndex];
+                if (player.rebuys >= count) {
+                    player.rebuys -= count;
+                    addLog(`מנהל ביטל כניסה של ₪${count * gameState.buyInAmount} לשחקן ${player.name}`);
+
+                    // אם מספר הכניסות ירד ל-0, מוחקים את השחקן מהרשימה
+                    if (player.rebuys === 0) {
+                        gameState.players.splice(playerIndex, 1);
+                        delete gameState.finalChips[playerId];
+                        addLog(`${player.name} נמחק מהשולחן (0 כניסות)`);
+                    }
+
+                    io.emit('updateState', gameState);
+                }
             }
         });
 
