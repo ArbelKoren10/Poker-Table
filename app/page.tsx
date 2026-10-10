@@ -68,23 +68,17 @@ export default function PokerDashboard() {
 
   if (!gameState) return <div className="text-center p-10 text-white font-bold text-xl">טוען שולחן...</div>;
 
-  const AdminLockButton = () => (
-    <button
-      onClick={handleAdminLogin}
-      className="fixed top-4 left-4 z-[999] bg-gray-800/90 p-3 rounded-full border-2 border-gray-600 text-2xl shadow-xl backdrop-blur-md transition-transform hover:scale-110"
-    >
-      {isAdmin ? '🔓' : '🔒'}
-    </button>
-  );
-
   if (!gameState.isSetup) {
     return (
-      <div className="min-h-screen text-white p-4 font-sans dir-rtl bg-gray-900 relative" dir="rtl"
+      <div className="min-h-screen text-white p-4 font-sans dir-rtl bg-gray-900" dir="rtl"
         style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}>
 
-        <AdminLockButton />
-
         <div className="max-w-md mx-auto bg-gray-800/90 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-2xl border border-gray-700 mt-16">
+          <div className="flex justify-start mb-4">
+            <button onClick={handleAdminLogin} className="bg-gray-700/80 p-2.5 rounded-full border border-gray-500 text-xl shadow-md transition-transform hover:scale-110">
+              {isAdmin ? '🔓' : '🔒'}
+            </button>
+          </div>
           <h1 className="text-3xl font-bold text-center mb-6 text-green-400">פתיחת שולחן פוקר</h1>
           <div className="mb-8">
             <label className="block text-gray-400 mb-2 font-bold">סכום כניסה ראשונית (₪):</label>
@@ -141,14 +135,19 @@ export default function PokerDashboard() {
   };
 
   return (
-    <div className="min-h-screen text-white p-3 md:p-4 font-sans dir-rtl pb-24 bg-gray-900 relative" dir="rtl"
+    <div className="min-h-screen text-white p-3 md:p-4 font-sans dir-rtl pb-24 bg-gray-900" dir="rtl"
       style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}>
 
-      <AdminLockButton />
+      <div className="max-w-md mx-auto pt-6">
 
-      <div className="max-w-md mx-auto pt-10 md:pt-10">
+        {/* כפתור המנעול למעלה מצד ימין (סטטי) */}
+        <div className="flex justify-start mb-2">
+          <button onClick={handleAdminLogin} className="bg-gray-800/80 p-2 rounded-full border border-gray-600 text-lg shadow-md backdrop-blur-sm transition-transform hover:scale-110">
+            {isAdmin ? '🔓' : '🔒'}
+          </button>
+        </div>
 
-        <div className="flex justify-between items-center mb-6 mt-2">
+        <div className="flex justify-between items-center mb-6">
           <button onClick={() => socket.emit('toggleCashOut')} className={`px-4 py-2 rounded-lg font-bold transition-colors shadow-md text-sm ${gameState.isCashingOut ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}`}>
             {gameState.isCashingOut ? 'חזור למשחק' : 'סיום משחק ופדיון'}
           </button>
@@ -270,7 +269,6 @@ export default function PokerDashboard() {
                     <div className="flex flex-col items-end gap-2">
                       {(isMe || isAdmin) ? (
                         <div className="flex flex-wrap justify-end gap-2">
-                          {/* כפתור מחיקת כניסה שמוצג רק לאדמין */}
                           {isAdmin && player.rebuys > 0 && (
                             <button onClick={() => { if (confirm(`למחוק כניסה אחת (₪${gameState.buyInAmount}) ל${player.name}?`)) socket.emit('removeRebuy', { playerId: player.id, count: 1 }); }} className="bg-red-600 hover:bg-red-500 px-3 py-2 rounded-lg font-bold shadow-md text-xs text-white">
                               - מחיקת כניסה (טעות)
