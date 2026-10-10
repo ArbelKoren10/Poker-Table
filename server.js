@@ -18,6 +18,7 @@ app.prepare().then(() => {
         players: [],
         logs: [],
         isCashingOut: false,
+        isSummaryMode: false, // המצב החדש למסך פודיום
         finalChips: {},
         collectedRake: 0,
         totalPaidOut: 0
@@ -38,7 +39,8 @@ app.prepare().then(() => {
 
         socket.on('setupTable', (amount) => {
             gameState = {
-                isSetup: true, buyInAmount: amount, players: [], logs: [], isCashingOut: false, finalChips: {}, collectedRake: 0, totalPaidOut: 0
+                isSetup: true, buyInAmount: amount, players: [], logs: [],
+                isCashingOut: false, isSummaryMode: false, finalChips: {}, collectedRake: 0, totalPaidOut: 0
             };
             addLog(`השולחן נפתח! סכום כניסה: ₪${amount}`);
             io.emit('updateState', gameState);
@@ -71,24 +73,19 @@ app.prepare().then(() => {
             }
         });
 
-        // הלוגיקה המעודכנת: מחיקת כניסה + הסרת השחקן אם הגיע ל-0
         socket.on('removeRebuy', (data) => {
             const { playerId, count = 1 } = data;
             const playerIndex = gameState.players.findIndex(p => p.id === playerId);
-
             if (playerIndex > -1) {
                 const player = gameState.players[playerIndex];
                 if (player.rebuys >= count) {
                     player.rebuys -= count;
                     addLog(`מנהל ביטל כניסה של ₪${count * gameState.buyInAmount} לשחקן ${player.name}`);
-
-                    // אם מספר הכניסות ירד ל-0, מוחקים את השחקן מהרשימה
                     if (player.rebuys === 0) {
                         gameState.players.splice(playerIndex, 1);
                         delete gameState.finalChips[playerId];
                         addLog(`${player.name} נמחק מהשולחן (0 כניסות)`);
                     }
-
                     io.emit('updateState', gameState);
                 }
             }
@@ -96,7 +93,15 @@ app.prepare().then(() => {
 
         socket.on('toggleCashOut', () => {
             gameState.isCashingOut = !gameState.isCashingOut;
+            gameState.isSummaryMode = false; // מוודא שהפודיום יורד אם חוזרים למשחק
             addLog(gameState.isCashingOut ? 'המשחק הושהה - מעבר למסך פדיון' : 'חזרנו למצב משחק פעיל');
+            io.emit('updateState', gameState);
+        });
+
+        // כפתור הפעלת פודיום
+        socket.on('toggleSummaryMode', () => {
+            gameState.isSummaryMode = !gameState.isSummaryMode;
+            addLog(gameState.isSummaryMode ? 'הוצג מסך סיכום ערב ופודיום' : 'חזרנו למסך פדיון');
             io.emit('updateState', gameState);
         });
 
@@ -133,19 +138,17 @@ app.prepare().then(() => {
             if (player && player.hasCashedOut) {
                 gameState.collectedRake -= player.paidRake;
                 gameState.totalPaidOut -= player.payout;
-
                 player.hasCashedOut = false;
                 player.cashedOutChips = 0;
                 player.payout = 0;
                 player.paidRake = 0;
-
                 addLog(`הפדיון של ${player.name} בוטל והוא הוחזר לשולחן`);
                 io.emit('updateState', gameState);
             }
         });
 
         socket.on('resetGame', () => {
-            gameState = { isSetup: false, buyInAmount: 50, players: [], logs: [], isCashingOut: false, finalChips: {}, collectedRake: 0, totalPaidOut: 0 };
+            gameState = { isSetup: false, buyInAmount: 50, players: [], logs: [], isCashingOut: false, isSummaryMode: false, finalChips: {}, collectedRake: 0, totalPaidOut: 0 };
             io.emit('updateState', gameState);
         });
     });

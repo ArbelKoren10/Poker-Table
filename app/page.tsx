@@ -14,6 +14,7 @@ interface GameState {
   players: Player[];
   logs: Log[];
   isCashingOut: boolean;
+  isSummaryMode: boolean;
   finalChips: Record<number, number>;
   collectedRake: number;
   totalPaidOut: number;
@@ -34,22 +35,19 @@ export default function PokerDashboard() {
 
   useEffect(() => {
     if (localStorage.getItem('pokerAdmin') === 'true') setIsAdmin(true);
-
     socket = io();
     socket.on('updateState', (state: GameState) => setGameState(state));
-
     const savedName = localStorage.getItem('pokerPlayerName');
     if (savedName) setMyPlayerName(savedName);
-
     return () => { socket.disconnect(); };
   }, []);
 
   const logsLength = gameState?.logs?.length || 0;
   useEffect(() => {
-    if (logsEndRef.current && !gameState?.isCashingOut) {
+    if (logsEndRef.current && !gameState?.isCashingOut && !gameState?.isSummaryMode) {
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [logsLength, gameState?.isCashingOut]);
+  }, [logsLength, gameState?.isCashingOut, gameState?.isSummaryMode]);
 
   const handleAdminLogin = () => {
     if (isAdmin) {
@@ -66,36 +64,135 @@ export default function PokerDashboard() {
     }
   };
 
+  const AdminLockButton = () => (
+    <div className="flex justify-start mb-2">
+      <button onClick={handleAdminLogin} className="bg-gray-800/80 p-2 rounded-full border border-gray-600 text-lg shadow-md backdrop-blur-sm transition-transform hover:scale-110">
+        {isAdmin ? '🔓' : '🔒'}
+      </button>
+    </div>
+  );
+
   if (!gameState) return <div className="text-center p-10 text-white font-bold text-xl">טוען שולחן...</div>;
 
   if (!gameState.isSetup) {
     return (
       <div className="min-h-screen text-white p-4 font-sans dir-rtl bg-gray-900" dir="rtl"
         style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}>
-
-        <div className="max-w-md mx-auto bg-gray-800/90 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-2xl border border-gray-700 mt-16">
-          <div className="flex justify-start mb-4">
-            <button onClick={handleAdminLogin} className="bg-gray-700/80 p-2.5 rounded-full border border-gray-500 text-xl shadow-md transition-transform hover:scale-110">
-              {isAdmin ? '🔓' : '🔒'}
+        <div className="max-w-md mx-auto pt-6">
+          <AdminLockButton />
+          <div className="bg-gray-800/90 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-2xl border border-gray-700 mt-6">
+            <h1 className="text-3xl font-bold text-center mb-6 text-green-400">פתיחת שולחן פוקר</h1>
+            <div className="mb-8">
+              <label className="block text-gray-400 mb-2 font-bold">סכום כניסה ראשונית (₪):</label>
+              <input type="number" value={setupBuyIn} onChange={(e) => setSetupBuyIn(Number(e.target.value))} className="w-full bg-gray-700 text-white p-4 rounded-lg border border-gray-600 focus:border-green-500 text-xl text-center" />
+            </div>
+            <button onClick={() => socket.emit('setupTable', setupBuyIn)} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl text-xl shadow-lg">
+              פתח שולחן לכולם!
             </button>
           </div>
-          <h1 className="text-3xl font-bold text-center mb-6 text-green-400">פתיחת שולחן פוקר</h1>
-          <div className="mb-8">
-            <label className="block text-gray-400 mb-2 font-bold">סכום כניסה ראשונית (₪):</label>
-            <input type="number" value={setupBuyIn} onChange={(e) => setSetupBuyIn(Number(e.target.value))} className="w-full bg-gray-700 text-white p-4 rounded-lg border border-gray-600 focus:border-green-500 text-xl text-center" />
-          </div>
-          <button onClick={() => socket.emit('setupTable', setupBuyIn)} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl text-xl shadow-lg">
-            פתח שולחן לכולם!
-          </button>
         </div>
       </div>
     );
   }
 
+  // חישובים לסיכום והפודיום
+  const playerStats = gameState.players.map(p => {
+    const invested = p.rebuys * gameState.buyInAmount;
+    const chips = p.hasCashedOut ? p.cashedOutChips : (gameState.finalChips[p.id] || 0);
+    const profit = (chips || 0) - invested;
+    return { ...p, invested, chips: chips || 0, profit };
+  }).sort((a, b) => b.profit - a.profit); // מסדר מהרווח הגדול להפסד הגדול
+
+  const mvp = playerStats.length > 0 && playerStats[0].profit > 0 ? playerStats[0] : null;
+  const sheep = playerStats.length > 1 && playerStats[playerStats.length - 1].profit < 0 ? playerStats[playerStats.length - 1] : null;
+
+  let atm = null;
+  let maxRebuys = 0;
+  playerStats.forEach(p => {
+    if (p.rebuys > maxRebuys) {
+      maxRebuys = p.rebuys;
+      atm = p;
+    }
+  });
+
   const totalEntries = gameState.players.reduce((sum, p) => sum + p.rebuys, 0);
   const totalGrossPot = totalEntries * gameState.buyInAmount;
-  const currentBoxBalance = totalGrossPot - (gameState.totalPaidOut || 0);
 
+  const generateWhatsAppShare = () => {
+    let text = `♠️ *סיכום ערב פוקר* ♠️\n\n`;
+    text += `💰 *קופה כללית:* ₪${totalGrossPot}\n`;
+    text += `🎯 *סה"כ כניסות:* ${totalEntries}\n\n`;
+
+    if (mvp) text += `👑 *תותח הערב:* ${mvp.name} (לקח ₪${mvp.profit})\n`;
+    if (sheep) text += `🐑 *כבש הערב:* ${sheep.name} (תרם ₪${Math.abs(sheep.profit)})\n`;
+    if (atm && atm.rebuys > 1) text += `🏧 *הכספומט:* ${atm.name} (${atm.rebuys} כניסות)\n`;
+
+    text += `\nנתראה בפעם הבאה! ♠️♥️♣️♦️`;
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  };
+
+  // --- מסך פודיום (סיכום ערב) ---
+  if (gameState.isSummaryMode) {
+    return (
+      <div className="min-h-screen text-white p-4 font-sans dir-rtl bg-gray-900 relative" dir="rtl"
+        style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}>
+
+        <div className="max-w-md mx-auto pt-6 pb-20">
+          <AdminLockButton />
+
+          <h1 className="text-4xl font-black text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">היכל התהילה</h1>
+          <p className="text-center text-gray-400 mb-8">סיכום ערב הפוקר</p>
+
+          <div className="space-y-6">
+            {/* MVP */}
+            {mvp && (
+              <div className="bg-gradient-to-br from-green-900/80 to-gray-800/90 rounded-2xl p-6 border-2 border-green-500/50 shadow-2xl relative overflow-hidden transform hover:scale-105 transition-transform">
+                <div className="absolute top-0 right-0 text-6xl opacity-20 transform rotate-12">👑</div>
+                <div className="text-green-400 font-bold mb-1">תותח הערב (MVP)</div>
+                <div className="text-3xl font-black text-white">{mvp.name}</div>
+                <div className="text-green-300 mt-2 text-xl">רווח נקי: ₪{mvp.profit} +</div>
+              </div>
+            )}
+
+            {/* כבש */}
+            {sheep && (
+              <div className="bg-gradient-to-br from-red-900/80 to-gray-800/90 rounded-2xl p-6 border-2 border-red-500/50 shadow-2xl relative overflow-hidden transform hover:scale-105 transition-transform">
+                <div className="absolute top-0 left-0 text-6xl opacity-20 transform -rotate-12">🐑</div>
+                <div className="text-red-400 font-bold mb-1">כבש הערב (המממן)</div>
+                <div className="text-3xl font-black text-white">{sheep.name}</div>
+                <div className="text-red-300 mt-2 text-xl">הפסד: ₪{Math.abs(sheep.profit)} -</div>
+              </div>
+            )}
+
+            {/* כספומט */}
+            {atm && atm.rebuys > 1 && atm.id !== sheep?.id && (
+              <div className="bg-gradient-to-br from-blue-900/80 to-gray-800/90 rounded-2xl p-6 border-2 border-blue-500/50 shadow-2xl relative overflow-hidden transform hover:scale-105 transition-transform">
+                <div className="absolute top-2 left-2 text-5xl opacity-20">🏧</div>
+                <div className="text-blue-400 font-bold mb-1">הכספומט של השולחן</div>
+                <div className="text-2xl font-black text-white">{atm.name}</div>
+                <div className="text-blue-300 mt-1 text-lg">ביצע {atm.rebuys} כניסות הערב</div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-10 space-y-4">
+            <a href={generateWhatsAppShare()} target="_blank" rel="noopener noreferrer" className="block w-full bg-green-500 hover:bg-green-400 text-white text-center font-bold py-4 rounded-xl shadow-lg transition-colors text-lg">
+              💬 שתף תוצאות לוואטסאפ
+            </a>
+
+            {isAdmin && (
+              <button onClick={() => socket.emit('toggleSummaryMode')} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl shadow-lg transition-colors text-lg border border-gray-500">
+                חזור למסך פדיון
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- מסך משחק ופדיון רגיל ---
+  const currentBoxBalance = totalGrossPot - (gameState.totalPaidOut || 0);
   const activePlayers = gameState.players.filter(p => !p.hasCashedOut);
   const cashedOutPlayers = gameState.players.filter(p => p.hasCashedOut);
 
@@ -106,9 +203,7 @@ export default function PokerDashboard() {
   let activeRake = 0;
   if (gameState.isCashingOut) {
     activePlayers.forEach(p => {
-      const invested = p.rebuys * gameState.buyInAmount;
-      const chips = gameState.finalChips[p.id] || 0;
-      const profit = chips - invested;
+      const profit = (gameState.finalChips[p.id] || 0) - (p.rebuys * gameState.buyInAmount);
       if (profit > 0) activeRake += Math.round(profit * 0.1);
     });
   }
@@ -139,18 +234,19 @@ export default function PokerDashboard() {
       style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}>
 
       <div className="max-w-md mx-auto pt-6">
-
-        {/* כפתור המנעול למעלה מצד ימין (סטטי) */}
-        <div className="flex justify-start mb-2">
-          <button onClick={handleAdminLogin} className="bg-gray-800/80 p-2 rounded-full border border-gray-600 text-lg shadow-md backdrop-blur-sm transition-transform hover:scale-110">
-            {isAdmin ? '🔓' : '🔒'}
-          </button>
-        </div>
+        <AdminLockButton />
 
         <div className="flex justify-between items-center mb-6">
-          <button onClick={() => socket.emit('toggleCashOut')} className={`px-4 py-2 rounded-lg font-bold transition-colors shadow-md text-sm ${gameState.isCashingOut ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}`}>
-            {gameState.isCashingOut ? 'חזור למשחק' : 'סיום משחק ופדיון'}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => socket.emit('toggleCashOut')} className={`px-4 py-2 rounded-lg font-bold transition-colors shadow-md text-sm ${gameState.isCashingOut ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}`}>
+              {gameState.isCashingOut ? 'חזור למשחק' : 'סיום משחק ופדיון'}
+            </button>
+            {isAdmin && gameState.isCashingOut && (
+              <button onClick={() => socket.emit('toggleSummaryMode')} className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg font-bold shadow-md text-sm">
+                🏆 פודיום
+              </button>
+            )}
+          </div>
           <button onClick={() => { if (confirm('בטוח שאתה רוצה לאפס הכל?')) socket.emit('resetGame'); }} className="text-red-400 text-sm hover:text-red-300 font-bold bg-red-900/40 px-3 py-2 rounded-md">
             איפוס שולחן
           </button>
@@ -271,7 +367,7 @@ export default function PokerDashboard() {
                         <div className="flex flex-wrap justify-end gap-2">
                           {isAdmin && player.rebuys > 0 && (
                             <button onClick={() => { if (confirm(`למחוק כניסה אחת (₪${gameState.buyInAmount}) ל${player.name}?`)) socket.emit('removeRebuy', { playerId: player.id, count: 1 }); }} className="bg-red-600 hover:bg-red-500 px-3 py-2 rounded-lg font-bold shadow-md text-xs text-white">
-                              - מחיקת כניסה (טעות)
+                              - מחיקת כניסה
                             </button>
                           )}
                           <button onClick={() => handleRebuy(player, 1)} className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg font-bold shadow-md text-xs text-white">
