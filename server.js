@@ -53,7 +53,6 @@ app.prepare().then(() => {
                 addLog(`${existingPlayer.name} נרשם שוב בטעות - נוסף אוטומטית כ Re-buy`);
             } else {
                 const newId = gameState.players.length > 0 ? Math.max(...gameState.players.map(p => p.id)) + 1 : 1;
-                // נוספו ערכים לניהול פדיון מוקדם
                 gameState.players.push({ id: newId, name: trimmedName, rebuys: 1, hasCashedOut: false, cashedOutChips: 0, payout: 0, paidRake: 0 });
                 gameState.finalChips[newId] = 0;
                 addLog(`${trimmedName} שילם והצטרף לשולחן`);
@@ -62,14 +61,23 @@ app.prepare().then(() => {
         });
 
         socket.on('addRebuy', (data) => {
-            const playerId = data.playerId;
-            const count = data.count || 1;
-
-            const player = gameState.players.findIndex(p => p.id === playerId);
-            if (player > -1) {
-                gameState.players[player].rebuys += count;
+            const { playerId, count = 1 } = data;
+            const player = gameState.players.find(p => p.id === playerId);
+            if (player) {
+                player.rebuys += count;
                 const text = count > 1 ? `Re-buy (x${count}) ב-₪${count * gameState.buyInAmount}` : 'Re-buy';
-                addLog(`${gameState.players[player].name} ביצע ${text}`);
+                addLog(`${player.name} ביצע ${text}`);
+                io.emit('updateState', gameState);
+            }
+        });
+
+        // הפונקציה החדשה למחיקת כניסה (אדמין בלבד)
+        socket.on('removeRebuy', (data) => {
+            const { playerId, count = 1 } = data;
+            const player = gameState.players.find(p => p.id === playerId);
+            if (player && player.rebuys >= count) {
+                player.rebuys -= count;
+                addLog(`מנהל ביטל כניסה של ₪${count * gameState.buyInAmount} לשחקן ${player.name}`);
                 io.emit('updateState', gameState);
             }
         });
@@ -85,7 +93,6 @@ app.prepare().then(() => {
             io.emit('updateState', gameState);
         });
 
-        // פונקציה חדשה: סגירת שחקן פרטני (לפרישה מוקדמת או סוף ערב)
         socket.on('settlePlayer', (playerId) => {
             const player = gameState.players.find(p => p.id === playerId);
             if (player && !player.hasCashedOut) {
@@ -109,7 +116,6 @@ app.prepare().then(() => {
             }
         });
 
-        // פונקציה חדשה: ביטול סגירת שחקן במידה והייתה טעות
         socket.on('unsettlePlayer', (playerId) => {
             const player = gameState.players.find(p => p.id === playerId);
             if (player && player.hasCashedOut) {

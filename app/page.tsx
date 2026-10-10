@@ -44,7 +44,6 @@ export default function PokerDashboard() {
     return () => { socket.disconnect(); };
   }, []);
 
-  // תיקון באג הקפיצה: גולל למטה *רק* אם אנחנו לא במצב פדיון ואורך הלוגים השתנה
   const logsLength = gameState?.logs?.length || 0;
   useEffect(() => {
     if (logsEndRef.current && !gameState?.isCashingOut) {
@@ -69,13 +68,22 @@ export default function PokerDashboard() {
 
   if (!gameState) return <div className="text-center p-10 text-white font-bold text-xl">טוען שולחן...</div>;
 
+  const AdminLockButton = () => (
+    <button
+      onClick={handleAdminLogin}
+      className="fixed top-4 left-4 z-[999] bg-gray-800/90 p-3 rounded-full border-2 border-gray-600 text-2xl shadow-xl backdrop-blur-md transition-transform hover:scale-110"
+    >
+      {isAdmin ? '🔓' : '🔒'}
+    </button>
+  );
+
   if (!gameState.isSetup) {
     return (
       <div className="min-h-screen text-white p-4 font-sans dir-rtl bg-gray-900 relative" dir="rtl"
         style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}>
-        <button onClick={handleAdminLogin} className="absolute top-4 left-4 z-50 bg-gray-800/80 p-3 rounded-full border border-gray-600 text-2xl shadow-lg backdrop-blur-sm">
-          {isAdmin ? '🔓' : '🔒'}
-        </button>
+
+        <AdminLockButton />
+
         <div className="max-w-md mx-auto bg-gray-800/90 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-2xl border border-gray-700 mt-16">
           <h1 className="text-3xl font-bold text-center mb-6 text-green-400">פתיחת שולחן פוקר</h1>
           <div className="mb-8">
@@ -90,22 +98,17 @@ export default function PokerDashboard() {
     );
   }
 
-  // חישובים גלובליים חכמים
   const totalEntries = gameState.players.reduce((sum, p) => sum + p.rebuys, 0);
-  const totalGrossPot = totalEntries * gameState.buyInAmount; // כל הכסף שנכנס אי פעם
-  const currentBoxBalance = totalGrossPot - (gameState.totalPaidOut || 0); // מזומן שנשאר כרגע בפייבוקס
+  const totalGrossPot = totalEntries * gameState.buyInAmount;
+  const currentBoxBalance = totalGrossPot - (gameState.totalPaidOut || 0);
 
-  // שחקנים פעילים מול שחקנים שפרשו
   const activePlayers = gameState.players.filter(p => !p.hasCashedOut);
   const cashedOutPlayers = gameState.players.filter(p => p.hasCashedOut);
 
-  // כמה צ'יפים אמורים להיות פזורים עכשיו על השולחן?
   const expectedActiveChips = totalGrossPot - cashedOutPlayers.reduce((sum, p) => sum + (p.cashedOutChips || 0), 0);
-  // כמה צ'יפים הוזנו בפועל עבור השחקנים הפעילים?
   const currentActiveChipsInput = activePlayers.reduce((sum, p) => sum + Number(gameState.finalChips[p.id] || 0), 0);
   const remainingPotDifference = expectedActiveChips - currentActiveChipsInput;
 
-  // חישוב עמלת לייב לשחקנים הפעילים שעוד לא נפדו
   let activeRake = 0;
   if (gameState.isCashingOut) {
     activePlayers.forEach(p => {
@@ -140,9 +143,8 @@ export default function PokerDashboard() {
   return (
     <div className="min-h-screen text-white p-3 md:p-4 font-sans dir-rtl pb-24 bg-gray-900 relative" dir="rtl"
       style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), url('/sheep.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}>
-      <button onClick={handleAdminLogin} className="fixed top-4 left-4 z-50 bg-gray-800/80 p-3 rounded-full border border-gray-600 text-2xl shadow-lg backdrop-blur-sm transition-transform hover:scale-110">
-        {isAdmin ? '🔓' : '🔒'}
-      </button>
+
+      <AdminLockButton />
 
       <div className="max-w-md mx-auto pt-10 md:pt-10">
 
@@ -232,7 +234,6 @@ export default function PokerDashboard() {
             let rake = 0; if (profit > 0) rake = Math.round(profit * 0.1);
             const finalPayout = (chips || 0) - rake;
 
-            // עיצוב שונה לשחקן שפרש/נפדה
             if (player.hasCashedOut) {
               return (
                 <div key={player.id} className="bg-gray-900/60 p-4 rounded-xl shadow-lg border border-green-500/30 opacity-80">
@@ -255,7 +256,6 @@ export default function PokerDashboard() {
               );
             }
 
-            // שחקן רגיל (פעיל)
             return (
               <div key={player.id} className="bg-gray-800/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-gray-700 flex flex-col gap-3">
                 <div className="flex justify-between items-start">
@@ -269,7 +269,13 @@ export default function PokerDashboard() {
                   {!gameState.isCashingOut ? (
                     <div className="flex flex-col items-end gap-2">
                       {(isMe || isAdmin) ? (
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {/* כפתור מחיקת כניסה שמוצג רק לאדמין */}
+                          {isAdmin && player.rebuys > 0 && (
+                            <button onClick={() => { if (confirm(`למחוק כניסה אחת (₪${gameState.buyInAmount}) ל${player.name}?`)) socket.emit('removeRebuy', { playerId: player.id, count: 1 }); }} className="bg-red-600 hover:bg-red-500 px-3 py-2 rounded-lg font-bold shadow-md text-xs text-white">
+                              - מחיקת כניסה (טעות)
+                            </button>
+                          )}
                           <button onClick={() => handleRebuy(player, 1)} className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg font-bold shadow-md text-xs text-white">
                             + ₪{gameState.buyInAmount}
                           </button>
@@ -309,7 +315,6 @@ export default function PokerDashboard() {
 
                     <div className="flex justify-between items-center pt-3 mt-2 border-t border-gray-700">
                       <div className="text-yellow-400 font-bold text-base">₪{finalPayout} להעברה</div>
-                      {/* הכפתור החדש לסגירת השחקן */}
                       <button onClick={() => { if (confirm(`האם העברת ₪${finalPayout} ל${player.name} בפייבוקס?`)) socket.emit('settlePlayer', player.id); }}
                         className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow transition-colors">
                         בצע פדיון וסגור שחקן
